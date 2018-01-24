@@ -33,11 +33,9 @@ public class BinanceAPI {
         return nonce
     }
 
-    private func calculateSignature(for endpoint: String, nonce: Int, params: [String: Any]) -> String? {
+    private func calculateSignature(params: [String: Any]) -> String? {
         let queryString = params.sorted { $0.0 < $1.0 }.map { "\($0.0)=\($0.1)"}.joined(separator: "&")
-        let signatureString = queryString.data(using: .utf8)?.base64EncodedString()
-        guard let hmac = signatureString?.hmac(secret: self.secret) else { return nil }
-        return hmac
+        return queryString.hmac(secret: self.secret)
     }
 
     private func request(for endpoint: String, params: [String: Any]) -> URLRequest? {
@@ -49,9 +47,26 @@ public class BinanceAPI {
         return request
     }
 
+    private func signedPostRequest(for endpoint: String, params: [String: Any]) -> URLRequest? {
+        var params = params
+        params["timestamp"] = BinanceAPI.timestamp
+        var queryString = params.sorted { $0.0 < $1.0 }.map { "\($0.0)=\($0.1)"}.joined(separator: "&")
+        guard let signature = self.calculateSignature(params: params) else { return nil }
+        queryString += "&signature=\(signature)"
+        print(#function, queryString)
+        let urlStr = self.baseUrl + endpoint
+        guard let url = URL(string: urlStr) else { return nil }
+        var request = URLRequest(url: url)
+        request.addValue(self.key, forHTTPHeaderField: "X-MBX-APIKEY")
+        request.httpMethod = "POST"
+        request.httpBody = queryString.data(using: .utf8)
+        return request
+    }
+
     private func runRequest<T: Codable>(request: URLRequest, success: SuccessCallback<T>? = nil, failure: FailureCallback? = nil) {
         URLSession.shared.dataTask(with: request) { (data, response, error) in
             guard let data = data else { return }
+            print(#function, String(data: data, encoding: .utf8))
             do {
                 let obj = try self.decoder.decode(T.self, from: data)
                 success?(obj)
@@ -62,10 +77,10 @@ public class BinanceAPI {
             }.resume()
     }
 
-    public class func PrepareOrderParams(symbol: String, side: OrderSide, type: OrderType, quantity: Decimal, price: Decimal? = nil) -> [String: Any] {
+    public class func prepareOrderParams(symbol: String, side: OrderSide, type: OrderType, quantity: Decimal, price: Decimal? = nil) -> [String: Any] {
         var params: [String: Any] = ["symbol": symbol, "side": side.rawValue, "type": type.rawValue, "quantity": quantity]
         params["timestamp"] = BinanceAPI.timestamp
-        params["timeInForce"] = TimeInForce.gtc.rawValue
+//        params["timeInForce"] = TimeInForce.gtc.rawValue
         params["newOrderRespType"] = OrderResponseType.ack.rawValue
         if let price = price {
             params["price"] = price
@@ -187,6 +202,11 @@ public class BinanceAPI {
     public func bookTicker(success: SuccessCallback<[BookTicker]>? = nil, failure: FailureCallback? = nil) {
         let params: [String: Any] = [:]
         guard let request = self.request(for: "v3/ticker/bookTicker", params: params) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+
+    public func placeOrder(params: [String: Any], success: SuccessCallback<OrderResponse>? = nil, failure: FailureCallback? = nil) {
+        guard let request = self.signedPostRequest(for: "v3/order/test", params: params) else { return }
         runRequest(request: request, success: success, failure: failure)
     }
 

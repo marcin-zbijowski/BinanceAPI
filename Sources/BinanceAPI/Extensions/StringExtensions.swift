@@ -7,7 +7,8 @@ extension String {
         do {
             let hmac = try HMAC(key: secret, variant: variant)
             let result = try hmac.authenticate([UInt8](self.utf8))
-            return Data(bytes: result).base64EncodedString()
+            let hex = result.map { String(format: "%02x", $0) }.joined()
+            return hex
         } catch {
             print(error)
         }

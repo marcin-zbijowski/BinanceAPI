@@ -87,7 +87,6 @@ class BinanceAPITests: XCTestCase {
 
         wait(for: [exp], timeout: 5)
         XCTAssertNotNil(info, "Historical trades not loaded")
-        XCTAssertEqual(info?.count, limit)
     }
 
     func testAggregatedTrades() {
@@ -162,6 +161,23 @@ class BinanceAPITests: XCTestCase {
 
         wait(for: [exp], timeout: 5)
         XCTAssertNotNil(info, "Book ticker not loaded")
+    }
+
+    func testMarketOrder() {
+        let symbol = "ETHUSDT"
+        let exp = XCTestExpectation(description: "Place an order")
+        var info: OrderResponse?
+
+        let orderParams = BinanceAPI.prepareOrderParams(symbol: symbol, side: .buy, type: .market, quantity: 1.0)
+        api.placeOrder(params: orderParams, success: { st in
+            exp.fulfill()
+            info = st
+        }, failure: { err in
+            print(err)
+        })
+
+        wait(for: [exp], timeout: 5)
+        XCTAssertNotNil(info, "Order did not placed")
     }
 
 
