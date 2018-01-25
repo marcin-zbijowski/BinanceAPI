@@ -16,6 +16,10 @@ public enum BinanceAPIError: Error {
     case invalidResponse(Data)
 }
 
+public enum RequestMethod: String {
+    case get = "GET", post = "POST", delete = "DELETE"
+}
+
 public class BinanceAPI {
 
     private let baseUrl = "https://api.binance.com/api/"
@@ -47,20 +51,25 @@ public class BinanceAPI {
         return request
     }
 
-    private func signedPostRequest(for endpoint: String, params: [String: Any]) -> URLRequest? {
+    private func signedRequest(for endpoint: String, method: RequestMethod, params: [String: Any]) -> URLRequest? {
         var params = params
         params["timestamp"] = BinanceAPI.timestamp
         var queryString = params.sorted { $0.0 < $1.0 }.map { "\($0.0)=\($0.1)"}.joined(separator: "&")
         guard let signature = self.calculateSignature(params: params) else { return nil }
         queryString += "&signature=\(signature)"
-        let urlStr = self.baseUrl + endpoint
+        let urlStr = self.baseUrl + endpoint + (method == .get ? "?\(queryString)" : "")
         guard let url = URL(string: urlStr) else { return nil }
         print(#function, #line, "⇨", url)
         print(#function, #line, "⇨", queryString)
         var request = URLRequest(url: url)
         request.addValue(self.key, forHTTPHeaderField: "X-MBX-APIKEY")
-        request.httpMethod = "POST"
-        request.httpBody = queryString.data(using: .utf8)
+        request.httpMethod = method.rawValue
+        switch method {
+        case .post, .delete:
+            request.httpBody = queryString.data(using: .utf8)
+        default:
+            break
+        }
         return request
     }
 
@@ -104,7 +113,6 @@ public class BinanceAPI {
         }
 
         print(#function, #line, "⇨", params)
-
 
         return params
     }
@@ -219,13 +227,48 @@ public class BinanceAPI {
     }
 
     public func placeTestOrder(params: [String: Any], success: SuccessCallbackEmpty? = nil, failure: FailureCallback? = nil) {
-        guard let request = self.signedPostRequest(for: "v3/order/test", params: params) else { return }
+        guard let request = self.signedRequest(for: "v3/order/test", method: .post, params: params) else { return }
         runRequest(request: request, success: success, failure: failure)
     }
 
     public func placeOrder(params: [String: Any], success: SuccessCallback<OrderResponse>? = nil, failure: FailureCallback? = nil) {
-        guard let request = self.signedPostRequest(for: "v3/order", params: params) else { return }
+        guard let request = self.signedRequest(for: "v3/order", method: .post, params: params) else { return }
         runRequest(request: request, success: success, failure: failure)
     }
 
+    public func getOrder(symbol: String, orderId: Int, success: SuccessCallback<Order>? = nil, failure: FailureCallback? = nil) {
+        let params: [String: Any] = ["symbol": symbol, "orderId": orderId]
+        guard let request = self.signedRequest(for: "v3/order", method: .get, params: params) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+
+    public func getOpenedOrders(symbol: String?, success: SuccessCallback<[Order]>? = nil, failure: FailureCallback? = nil) {
+        var params: [String: Any] = [:]
+        if let symbol = symbol {
+            params["symbol"] = symbol
+        }
+        guard let request = self.signedRequest(for: "v3/openedOrders", method: .get, params: params) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+
+    public func getAllOrders(symbol: String?, limit: Int = 500, success: SuccessCallback<[Order]>? = nil, failure: FailureCallback? = nil) {
+        var params: [String: Any] = ["limit": limit]
+        if let symbol = symbol {
+            params["symbol"] = symbol
+        }
+        guard let request = self.signedRequest(for: "v3/allOrders", method: .get, params: params) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+
+    public func cancelOrder(symbol: String, orderId: Int, success: SuccessCallback<CancelledOrder>? = nil, failure: FailureCallback? = nil) {
+        let params: [String: Any] = ["symbol": symbol, "orderId": orderId]
+        guard let request = self.signedRequest(for: "v3/order", method: .delete, params: params) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+
+    public func account(success: SuccessCallback<Account>? = nil, failure: FailureCallback? = nil) {
+        guard let request = self.signedRequest(for: "v3/account", method: .get, params: [:]) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+    
 }

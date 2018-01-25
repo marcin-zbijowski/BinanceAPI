@@ -105,3 +105,9 @@ public struct Order: Codable {
 
 }
 
+public struct CancelledOrder: Codable {
+    public var symbol: String
+    public var origClientOrderId: String
+    public var orderId: Int
+    public var clientOrderId: String
+}

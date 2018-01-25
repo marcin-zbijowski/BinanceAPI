@@ -192,5 +192,18 @@ class BinanceAPITests: XCTestCase {
         wait(for: [exp], timeout: 5)
     }
 
+    func testAccount() {
+        let exp = XCTestExpectation(description: "Loaded account")
+        var info: Account?
 
+        api.account(success: { st in
+            exp.fulfill()
+            info = st
+        }, failure: { err in
+            print(err)
+        })
+
+        wait(for: [exp], timeout: 5)
+        XCTAssertNotNil(info, "Account not loaded")
+    }
 }
