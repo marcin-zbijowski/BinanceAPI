@@ -166,18 +166,30 @@ class BinanceAPITests: XCTestCase {
     func testMarketOrder() {
         let symbol = "ETHUSDT"
         let exp = XCTestExpectation(description: "Place an order")
-        var info: OrderResponse?
 
         let orderParams = BinanceAPI.prepareOrderParams(symbol: symbol, side: .buy, type: .market, quantity: 1.0)
-        api.placeOrder(params: orderParams, success: { st in
+        api.placeTestOrder(params: orderParams, success: {
             exp.fulfill()
-            info = st
         }, failure: { err in
             print(err)
         })
 
         wait(for: [exp], timeout: 5)
-        XCTAssertNotNil(info, "Order did not placed")
+    }
+
+    func testLimitMakerOrder() {
+        let symbol = "ETHUSDT"
+        let exp = XCTestExpectation(description: "Place an order")
+
+        // MIN_NOTIONAL filter for that symbol is 20 (price * quantity)
+        let orderParams = BinanceAPI.prepareOrderParams(symbol: symbol, side: .buy, type: .limitMaker, quantity: 20, price: 1.0)
+        api.placeTestOrder(params: orderParams, success: {
+            exp.fulfill()
+        }, failure: { err in
+            print(err)
+        })
+
+        wait(for: [exp], timeout: 5)
     }
 
 

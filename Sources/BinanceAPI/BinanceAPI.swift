@@ -53,9 +53,10 @@ public class BinanceAPI {
         var queryString = params.sorted { $0.0 < $1.0 }.map { "\($0.0)=\($0.1)"}.joined(separator: "&")
         guard let signature = self.calculateSignature(params: params) else { return nil }
         queryString += "&signature=\(signature)"
-        print(#function, queryString)
         let urlStr = self.baseUrl + endpoint
         guard let url = URL(string: urlStr) else { return nil }
+        print(#function, #line, "⇨", url)
+        print(#function, #line, "⇨", queryString)
         var request = URLRequest(url: url)
         request.addValue(self.key, forHTTPHeaderField: "X-MBX-APIKEY")
         request.httpMethod = "POST"
@@ -66,7 +67,8 @@ public class BinanceAPI {
     private func runRequest<T: Codable>(request: URLRequest, success: SuccessCallback<T>? = nil, failure: FailureCallback? = nil) {
         URLSession.shared.dataTask(with: request) { (data, response, error) in
             guard let data = data else { return }
-            print(#function, String(data: data, encoding: .utf8))
+            print(#function, #line, "⇨", String(data: data, encoding: .utf8))
+            print(#function, #line, "⇨", (response as? HTTPURLResponse)?.statusCode)
             do {
                 let obj = try self.decoder.decode(T.self, from: data)
                 success?(obj)
@@ -74,7 +76,22 @@ public class BinanceAPI {
                 print(#function, err)
                 failure?(err)
             }
-            }.resume()
+        }.resume()
+    }
+
+    private func runRequest(request: URLRequest, success: SuccessCallbackEmpty? = nil, failure: FailureCallback? = nil) {
+        URLSession.shared.dataTask(with: request) { (data, response, error) in
+            if let data = data {
+                print(#function, #line, "⇨", String(data: data, encoding: .utf8))
+            }
+            print(#function, #line, "⇨", (response as? HTTPURLResponse)?.statusCode)
+            guard let response = response as? HTTPURLResponse else { return }
+            if response.statusCode == 200 {
+                success?()
+            } else {
+                failure?(BinanceAPIError.unexpectedResponseCode(response.statusCode))
+            }
+        }.resume()
     }
 
     public class func prepareOrderParams(symbol: String, side: OrderSide, type: OrderType, quantity: Decimal, price: Decimal? = nil) -> [String: Any] {
@@ -86,19 +103,15 @@ public class BinanceAPI {
             params["price"] = price
         }
 
+        print(#function, #line, "⇨", params)
+
+
         return params
     }
 
     public func ping(success: SuccessCallbackEmpty? = nil, failure: FailureCallback? = nil) {
         guard let request = self.request(for: "v1/ping", params: [:]) else { return }
-        URLSession.shared.dataTask(with: request) { (data, response, error) in
-            guard let response = response as? HTTPURLResponse else { return }
-            if response.statusCode == 200 {
-                success?()
-            } else {
-                failure?(BinanceAPIError.unexpectedResponseCode(response.statusCode))
-            }
-        }.resume()
+        runRequest(request: request, success: success, failure: failure)
     }
 
     public func time(success: SuccessCallback<Int>? = nil, failure: FailureCallback? = nil) {
@@ -205,8 +218,13 @@ public class BinanceAPI {
         runRequest(request: request, success: success, failure: failure)
     }
 
-    public func placeOrder(params: [String: Any], success: SuccessCallback<OrderResponse>? = nil, failure: FailureCallback? = nil) {
+    public func placeTestOrder(params: [String: Any], success: SuccessCallbackEmpty? = nil, failure: FailureCallback? = nil) {
         guard let request = self.signedPostRequest(for: "v3/order/test", params: params) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+
+    public func placeOrder(params: [String: Any], success: SuccessCallback<OrderResponse>? = nil, failure: FailureCallback? = nil) {
+        guard let request = self.signedPostRequest(for: "v3/order", params: params) else { return }
         runRequest(request: request, success: success, failure: failure)
     }
 
