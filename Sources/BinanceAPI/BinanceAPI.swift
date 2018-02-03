@@ -270,5 +270,10 @@ public class BinanceAPI {
         guard let request = self.signedRequest(for: "v3/account", method: .get, params: [:]) else { return }
         runRequest(request: request, success: success, failure: failure)
     }
-    
+
+    public func account(symbol: String, limit: Int, success: SuccessCallback<[MyTrade]>? = nil, failure: FailureCallback? = nil) {
+        guard let request = self.signedRequest(for: "v3/myTrades", method: .get, params: ["symbol": symbol, "limit": limit]) else { return }
+        runRequest(request: request, success: success, failure: failure)
+    }
+
 }

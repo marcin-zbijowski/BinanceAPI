@@ -16,5 +16,8 @@ let package = Package(
             name: "BinanceAPITests",
             dependencies: ["BinanceAPI"]
         )
+    ],
+    products: [
+        .library(name: "BinanceAPI", targets: ["BinanceAPI"])
     ]
 )
