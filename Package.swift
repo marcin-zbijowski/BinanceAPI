@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "BinanceAPI",
+    products: [
+        .library(name: "BinanceAPI", targets: ["BinanceAPI"])
+    ],
     dependencies: [
         .package(url: "https://github.com/krzyzanowskim/CryptoSwift.git", .upToNextMinor(from: "0.8.0"))
     ],
@@ -16,8 +19,5 @@ let package = Package(
             name: "BinanceAPITests",
             dependencies: ["BinanceAPI"]
         )
-    ],
-    products: [
-        .library(name: "BinanceAPI", targets: ["BinanceAPI"])
     ]
 )
